@@ -263,19 +263,8 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
       do {
         player = try AVAudioPlayer(contentsOf: soundUrl)
         player?.delegate = self
-        
-        // 현재 오디오 라우트를 방해하지 않도록 설정
-        #if os(iOS)
-        do {
-          try AVAudioSession.sharedInstance().setCategory(
-            AVAudioSession.sharedInstance().category,
-            mode: AVAudioSession.sharedInstance().mode,
-            options: AVAudioSession.sharedInstance().categoryOptions.subtracting(.defaultToSpeaker)
-          )
-        } catch {
-          // 설정 실패 시 무시
-        }
-        #endif
+        // 현재 오디오 세션을 변경하지 않도록 설정
+        player?.prepareToPlay()
       } catch {
         // no audio
       }
