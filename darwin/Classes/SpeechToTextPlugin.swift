@@ -83,9 +83,6 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
   private var cancelSound: AVAudioPlayer?
 
   #if os(iOS)
-    private var rememberedAudioCategory: AVAudioSession.Category?
-    private var rememberedAudioCategoryOptions: AVAudioSession.CategoryOptions?
-    private let audioSession = AVAudioSession.sharedInstance()
   #endif
 
   private var previousLocale: Locale?
@@ -187,7 +184,7 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
     var has =
       SFSpeechRecognizer.authorizationStatus() == SFSpeechRecognizerAuthorizationStatus.authorized
     #if os(iOS)
-      has = has && self.audioSession.recordPermission == AVAudioSession.RecordPermission.granted
+      has = has && AVAudioSession.sharedInstance().recordPermission == AVAudioSession.RecordPermission.granted
     #else
       has = has && AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     #endif
@@ -208,7 +205,7 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
 
           #if os(iOS)
 
-            self.audioSession.requestRecordPermission({ (granted: Bool) -> Void in
+            AVAudioSession.sharedInstance().requestRecordPermission({ (granted: Bool) -> Void in
               if granted {
                 self.setupSpeechRecognition(result)
               } else {
@@ -406,19 +403,10 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
     }
     #if os(iOS)
       do {
-        if let rememberedAudioCategory = rememberedAudioCategory,
-          let rememberedAudioCategoryOptions = rememberedAudioCategoryOptions
-        {
-          try self.audioSession.setCategory(
-            rememberedAudioCategory, options: rememberedAudioCategoryOptions)
-        }
-      } catch {
+        } catch {
         os_log(
           "Error stopping listen: %{PUBLIC}@", log: pluginLog, type: .error,
           error.localizedDescription)
-      }
-      do {
-        try self.audioSession.setActive(false, options: .notifyOthersOnDeactivation)
       } catch {
         os_log(
           "Error deactivation: %{PUBLIC}@", log: pluginLog, type: .info, error.localizedDescription)
@@ -469,22 +457,6 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
         }
       }
 
-      #if os(iOS)
-        rememberedAudioCategory = self.audioSession.category
-        rememberedAudioCategoryOptions = self.audioSession.categoryOptions
-        try self.audioSession.setCategory(
-          AVAudioSession.Category.playAndRecord,
-          options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
-        //            try self.audioSession.setMode(AVAudioSession.Mode.measurement)
-        if sampleRate > 0 {
-          try self.audioSession.setPreferredSampleRate(Double(sampleRate))
-        }
-        try self.audioSession.setMode(AVAudioSession.Mode.default)
-        try self.audioSession.setActive(true, options: .notifyOthersOnDeactivation)
-        if #available(iOS 13.0, *) {
-          try self.audioSession.setAllowHapticsAndSystemSoundsDuringRecording(enableHaptics)
-        }
-      #endif
       if let sound = listeningSound {
         self.onPlayEnd = { () -> Void in
           if !self.failedListen {
@@ -533,7 +505,7 @@ public class SpeechToTextPlugin: NSObject, FlutterPlugin {
       var fmt: AVAudioFormat!
       #if os(iOS)
 
-        let theSampleRate = audioSession.sampleRate
+        let theSampleRate = AVAudioSession.sharedInstance().sampleRate
 
         fmt = AVAudioFormat(
           commonFormat: recordingFormat!.commonFormat, sampleRate: theSampleRate,
